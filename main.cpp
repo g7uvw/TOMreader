@@ -81,12 +81,22 @@ int main(int argc, const char * argv[]) {
     printf("volume.data() == %p after resize\n", TomVolume.data());
     printf("volume.origin() == %p after resize\n", TomVolume.origin());
 
-        // create array to hold the image data
-        // Create a 3D array that is xsize x ysize x zsize
+    // create array to hold the image data
+    // Create a 3D array that is xsize x ysize x zsize
 
     //boost::multi_array<uint8_t,3> TomVolume;
     //TomVolume.resize(boost::extents[20][20][20]);
     //TomVolume.resize(boost::extents[TomHeader.xsize][TomHeader.ysize][TomHeader.zsize]);
+
+    // Sorry.
+    // This is NOT how to do pointer manipulation. It just seems to work.
+    // TomVolume.data() returns a pointer to the first element of the array, but the pointer is of size element
+    // This is uint8_t in this case. So it's trying to stuff a size_t thing into an 8bit thing.
+    // This doesn't work.
+    // I can't see how to get a real honest to goodnesss pointer to the first element without some underhandedness
+    // Thanks to Clive I know the printf("volume.data() == %p after resize\n", TomVolume.data()); works, so we can
+    // print that pointer value to a string and then get it back into a size_t thing, which we can look inside.
+    // Sorry.
 
     char *end;
     char *buf;
@@ -95,12 +105,7 @@ int main(int argc, const char * argv[]) {
     buf = (char *)malloc(sz + 1); /* make sure you check for != NULL in real code */
     snprintf(buf, sz+1, "%p", TomVolume.data());
     size_t data = std::strtoul(buf, &end, 16);
-        //size_t data = atoi(buf);
 
-        // get handle to where the data actually lives and how much space we have allocated
-        //size_t wibble = TomVolume.data();
-        //size_t *data = TomVolume.origin();
-    //size_t bytes = 8000;//TomHeader.xsize * TomHeader.ysize * TomHeader.zsize;
     size_t bytes = TomHeader.xsize * TomHeader.ysize * TomHeader.zsize;
     tomfile.seekg(512); // skip the file header
     tomfile.read((char*) *&data, bytes);
@@ -109,9 +114,9 @@ int main(int argc, const char * argv[]) {
 
 
 
-        // make a RGB slice - set R=G=B
-        // totally not optimal, but will do for testing.
-        // write out a PNG that's just the central XY slice from the Z stack
+    // make a RGB slice - set R=G=B
+    // totally not optimal, but will do for testing.
+    // write out a PNG that's just the central XY slice from the Z stack
     std::cout << "Loaded data and closed file" << std::endl;
     std::vector<uint8_t> rgbslice;
     rgbslice.resize(3 * TomHeader.xsize * TomHeader.ysize);
@@ -129,26 +134,18 @@ int main(int argc, const char * argv[]) {
 
     std::cout << "Made a slice" << std::endl;
 
-
-//    for(unsigned int rgb_pixel = 0; rgb_pixel < rgbslice.size(); rgb_pixel++)
-//        for(unsigned int i = 0; i < TomHeader.xsize; i++)
-//            for(unsigned int j = 0; j < TomHeader.ysize; j++)
-//                {
-//                    //red
-//                rgbslice[rgb_pixel] = TomVolume[i][j][TomHeader.zsize / 2];
-//                rgb_pixel++;
-//                    //green
-//                rgbslice[rgb_pixel] = TomVolume[i][j][TomHeader.zsize / 2];
-//                rgb_pixel++;
-//                    //blues
-//                rgbslice[rgb_pixel] = TomVolume[i][j][TomHeader.zsize / 2];
-//                }
-//
     uint8_t* p = rgbslice.data();
-//
+
+
+    //dump out a raw binary from the array (this can be opened in imageJ)
+    std::ofstream outFile("slice.raw");
+    for (const auto &e : rgbslice) outFile << e;
+    outFile.close();
+
+
     std::ofstream out("slice.png", std::ios::binary);
     TinyPngOut pngout(static_cast<uint32_t>(TomHeader.xsize), static_cast<uint32_t>(TomHeader.ysize), out);
-//
+
     pngout.write(p, static_cast<size_t>(TomHeader.xsize * TomHeader.ysize));
     std::cout << "Wrote out slice" << std::endl;
     return 0;
